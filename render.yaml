@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: levela-quotation-form
+    env: python
+    buildCommand: ""
+    startCommand: gunicorn quotationform:app
+    plan: free
