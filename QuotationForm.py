@@ -1,3 +1,7 @@
+from flask import Flask, request, render_template_string
+
+app = Flask(__name__)
+
 form_template = """
 <!doctype html>
 <html lang="en">
@@ -111,3 +115,55 @@ form_template = """
 </body>
 </html>
 """
+
+@app.route("/", methods=["GET", "POST"])
+def quote():
+    if request.method == "POST":
+        name = request.form["name"]
+        email = request.form["email"]
+        website_type = request.form["website_type"]
+        pages = request.form["pages"]
+        ecommerce = "ecommerce" in request.form
+        apps = "apps" in request.form
+        images = "images" in request.form
+        seo = "seo" in request.form
+        hosting = "hosting" in request.form
+
+        # Pricing logic
+        price = 300  # base
+
+        # Website type impact
+        if website_type == "E-commerce":
+            price += 200
+        elif website_type == "Booking":
+            price += 150
+        elif website_type == "Business":
+            price += 100
+
+        # Pages
+        if pages == "6–10":
+            price += 100
+        elif pages == "11–20":
+            price += 200
+        elif pages == "20+":
+            price += 300
+        else:
+            price += 50
+
+        if ecommerce:
+            price += 300
+        if apps:
+            price += 400
+        if images:
+            price += 100
+        if seo:
+            price += 150
+        if hosting:
+            price += 99
+
+        return render_template_string(form_template, quote=price, name=name, email=email)
+
+    return render_template_string(form_template)
+
+if __name__ == "__main__":
+    app.run(debug=True)
