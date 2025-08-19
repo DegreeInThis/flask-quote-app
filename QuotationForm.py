@@ -4,18 +4,18 @@ from io import BytesIO
 
 app = Flask(__name__)
 
-# Base prices by page count
+# ✅ Updated base prices by page count
 BASE_PRICES = {
     'starter': 249,
-    'pro': 469,
-    'elite': 925
+    'pro': 399,     # was 469
+    'elite': 599    # was 925
 }
 
-# Website type multipliers
+# ✅ Updated website type multipliers
 TYPE_MULTIPLIERS = {
     'personal': 1.0,
-    'business': 1.3,
-    'ecommerce': 1.8
+    'business': 1.2,    # was 1.3
+    'ecommerce': 1.5    # was 1.8
 }
 
 # Add-on prices
