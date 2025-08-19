@@ -214,4 +214,5 @@ def download_pdf():
     pdf = pdfkit.from_string(html, False)
     return send_file(BytesIO(pdf), download_name="quote.pdf", as_attachment=True)
 
-if __name__ == "__
+if __name__ == "__main__":
+    app.run(debug=True)
