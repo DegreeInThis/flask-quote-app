@@ -3,5 +3,5 @@ services:
     name: levela-quotation-form
     env: python
     buildCommand: ""
-    startCommand: gunicorn quotationform:app
+    startCommand: gunicorn QuotationForm:app
     plan: free

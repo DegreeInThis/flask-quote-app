@@ -1,8 +1,35 @@
-from flask import Flask, request, render_template_string
+from flask import Flask, request, render_template_string, send_file
+import pdfkit
+from io import BytesIO
 
 app = Flask(__name__)
 
-form_template = """
+# Base prices by page count
+BASE_PRICES = {
+    'starter': 249,
+    'pro': 469,
+    'elite': 925
+}
+
+# Website type multipliers
+TYPE_MULTIPLIERS = {
+    'personal': 1.0,
+    'business': 1.3,
+    'ecommerce': 1.8
+}
+
+# Add-on prices
+ADD_ONS = {
+    'seo': 150,
+    'social_media': 300,
+    'hosting': 99,
+    'stock_images': 100,
+    'blog': 120,
+    'custom_app': 400,
+    'business_app': 750
+}
+
+HTML_TEMPLATE = """
 <!doctype html>
 <html lang="en">
 <head>
@@ -29,23 +56,17 @@ form_template = """
     }
     input[type="text"],
     input[type="email"],
-    input[type="date"],
-    select,
-    textarea {
+    select {
       width: 100%;
       padding: 10px;
       margin-top: 6px;
       margin-bottom: 20px;
       border: 1px solid #ccc;
       border-radius: 4px;
-      box-sizing: border-box;
       font-size: 16px;
     }
     input[type="checkbox"] {
       margin-right: 10px;
-    }
-    textarea {
-      resize: vertical;
     }
     input[type="submit"] {
       background-color: #3498db;
@@ -55,7 +76,6 @@ form_template = """
       border-radius: 4px;
       cursor: pointer;
       font-size: 16px;
-      transition: background 0.3s ease;
     }
     input[type="submit"]:hover {
       background-color: #2980b9;
@@ -77,39 +97,59 @@ form_template = """
 <body>
   <h2>Get Your Website Quote</h2>
   <form method="post">
-    Name: <input type="text" name="name" required>
-    Email: <input type="email" name="email" required>
+    Name: <input type="text" name="name" required value="{{ name or '' }}">
+    Email: <input type="email" name="email" required value="{{ email or '' }}">
+
+    Page Count:
+    <select name="page_count">
+      <option value="starter" {% if page_count == 'starter' %}selected{% endif %}>1–3 Pages (Starter)</option>
+      <option value="pro" {% if page_count == 'pro' %}selected{% endif %}>4–6 Pages (Pro)</option>
+      <option value="elite" {% if page_count == 'elite' %}selected{% endif %}>7+ Pages (Elite)</option>
+    </select>
+
     Website Type:
-    <select name="website_type">
-      <option>Portfolio</option>
-      <option>Blog</option>
-      <option>Business</option>
-      <option>E-commerce</option>
-      <option>Booking</option>
+    <select name="site_type">
+      <option value="personal" {% if site_type == 'personal' %}selected{% endif %}>Personal</option>
+      <option value="business" {% if site_type == 'business' %}selected{% endif %}>Business</option>
+      <option value="ecommerce" {% if site_type == 'ecommerce' %}selected{% endif %}>E-commerce</option>
     </select>
-    Number of Pages:
-    <select name="pages">
-      <option>1–5</option>
-      <option>6–10</option>
-      <option>11–20</option>
-      <option>20+</option>
-    </select>
-    <label><input type="checkbox" name="ecommerce"> E-commerce Functionality</label><br>
-    <label><input type="checkbox" name="apps"> Custom Web Apps Needed</label><br>
-    <label><input type="checkbox" name="images"> Stock Images Required</label><br>
-    <label><input type="checkbox" name="seo"> SEO Optimization</label><br>
-    <label><input type="checkbox" name="hosting"> Hosting & Domain Setup</label><br><br>
-    Deadline: <input type="date" name="deadline">
-    Additional Notes:<br>
-    <textarea name="notes" rows="4" cols="40"></textarea><br>
+
+    <label><input type="checkbox" name="addons" value="seo" {% if 'seo' in selected_addons %}checked{% endif %}> SEO Optimization</label><br>
+    <label><input type="checkbox" name="addons" value="social_media" {% if 'social_media' in selected_addons %}checked{% endif %}> Social Media Setup</label><br>
+    <label><input type="checkbox" name="addons" value="hosting" {% if 'hosting' in selected_addons %}checked{% endif %}> Hosting & Domain Setup</label><br>
+    <label><input type="checkbox" name="addons" value="stock_images" {% if 'stock_images' in selected_addons %}checked{% endif %}> Stock Images</label><br>
+    <label><input type="checkbox" name="addons" value="blog" {% if 'blog' in selected_addons %}checked{% endif %}> Blog Creation</label><br>
+    <label><input type="checkbox" name="addons" value="custom_app" {% if 'custom_app' in selected_addons %}checked{% endif %}> Custom Web App</label><br>
+    <label><input type="checkbox" name="addons" value="business_app" {% if 'business_app' in selected_addons %}checked{% endif %}> Business App</label><br><br>
+
     <input type="submit" value="Get Quote">
   </form>
 
   {% if quote %}
     <div class="quote-box">
       <h3>Quotation for {{ name }}</h3>
+      <p>Email: <strong>{{ email }}</strong></p>
+      <p>Website Type: <strong>{{ site_type.capitalize() }}</strong></p>
+      <p>Page Count: <strong>{{ page_count.capitalize() }}</strong></p>
+      <p>Add-ons Selected:</p>
+      <ul>
+        {% for addon in selected_addons %}
+          <li>{{ addon.replace('_', ' ').title() }}</li>
+        {% endfor %}
+      </ul>
       <p>Estimated Price: <strong>£{{ quote }}</strong></p>
-      <p>We'll follow up via: <strong>{{ email }}</strong></p>
+
+      <form method="post" action="/download">
+        <input type="hidden" name="name" value="{{ name }}">
+        <input type="hidden" name="email" value="{{ email }}">
+        <input type="hidden" name="page_count" value="{{ page_count }}">
+        <input type="hidden" name="site_type" value="{{ site_type }}">
+        {% for addon in selected_addons %}
+          <input type="hidden" name="addons" value="{{ addon }}">
+        {% endfor %}
+        <input type="hidden" name="quote" value="{{ quote }}">
+        <input type="submit" value="Download Quote as PDF">
+      </form>
     </div>
   {% endif %}
 </body>
@@ -118,52 +158,60 @@ form_template = """
 
 @app.route("/", methods=["GET", "POST"])
 def quote():
+    name = email = page_count = site_type = None
+    selected_addons = []
+    total_quote = None
+
     if request.method == "POST":
         name = request.form["name"]
         email = request.form["email"]
-        website_type = request.form["website_type"]
-        pages = request.form["pages"]
-        ecommerce = "ecommerce" in request.form
-        apps = "apps" in request.form
-        images = "images" in request.form
-        seo = "seo" in request.form
-        hosting = "hosting" in request.form
+        page_count = request.form["page_count"]
+        site_type = request.form["site_type"]
+        selected_addons = request.form.getlist("addons")
 
-        # Pricing logic
-        price = 300  # base
+        base_price = BASE_PRICES.get(page_count, 0)
+        multiplier = TYPE_MULTIPLIERS.get(site_type, 1.0)
+        adjusted_price = base_price * multiplier
+        addons_total = sum(ADD_ONS.get(addon, 0) for addon in selected_addons)
+        total_quote = round(adjusted_price + addons_total, 2)
 
-        # Website type impact
-        if website_type == "E-commerce":
-            price += 200
-        elif website_type == "Booking":
-            price += 150
-        elif website_type == "Business":
-            price += 100
+    return render_template_string(
+        HTML_TEMPLATE,
+        name=name,
+        email=email,
+        page_count=page_count,
+        site_type=site_type,
+        selected_addons=selected_addons,
+        quote=total_quote
+    )
 
-        # Pages
-        if pages == "6–10":
-            price += 100
-        elif pages == "11–20":
-            price += 200
-        elif pages == "20+":
-            price += 300
-        else:
-            price += 50
+@app.route("/download", methods=["POST"])
+def download_pdf():
+    name = request.form["name"]
+    email = request.form["email"]
+    page_count = request.form["page_count"]
+    site_type = request.form["site_type"]
+    selected_addons = request.form.getlist("addons")
+    quote = request.form["quote"]
 
-        if ecommerce:
-            price += 300
-        if apps:
-            price += 400
-        if images:
-            price += 100
-        if seo:
-            price += 150
-        if hosting:
-            price += 99
+    html = f"""
+    <html>
+    <head><meta charset="UTF-8"></head>
+    <body style='font-family: Segoe UI; padding: 30px;'>
+        <h2>Quotation for {name}</h2>
+        <p>Email: <strong>{email}</strong></p>
+        <p>Website Type: <strong>{site_type.capitalize()}</strong></p>
+        <p>Page Count: <strong>{page_count.capitalize()}</strong></p>
+        <p>Add-ons Selected:</p>
+        <ul>
+            {''.join(f"<li>{addon.replace('_', ' ').title()}</li>" for addon in selected_addons)}
+        </ul>
+        <p>Estimated Price: <strong>£{quote}</strong></p>
+    </body>
+    </html>
+    """
 
-        return render_template_string(form_template, quote=price, name=name, email=email)
+    pdf = pdfkit.from_string(html, False)
+    return send_file(BytesIO(pdf), download_name="quote.pdf", as_attachment=True)
 
-    return render_template_string(form_template)
-
-if __name__ == "__main__":
-    app.run(debug=True)
+if __name__ == "__
