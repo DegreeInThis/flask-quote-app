@@ -1,0 +1,20 @@
+<h2>Thanks, {{ data.name }}!</h2>
+<p>You've selected the <strong>{{ data.package }}</strong> package.</p>
+<p>Estimated total: <strong>£{{ total_price // 100 }}</strong></p>
+
+<h3>Your Design Preview</h3>
+<iframe
+  src="{{ preview_url }}"
+  width="100%"
+  height="400px"
+  style="border: none"
+></iframe>
+
+<h3>Next Steps</h3>
+<ul>
+  <li>We’ll begin building your site based on your preferences</li>
+  <li>You’ll receive a confirmation email shortly</li>
+  <li>
+    Need help? <a href="https://wa.me/447XXXXXXXXX">Message us on WhatsApp</a>
+  </li>
+</ul>

@@ -1,0 +1,65 @@
+<h2>Start Your Website Now</h2>
+<form method="POST">
+  <label>Name: <input type="text" name="name" required /></label><br />
+  <label>Location: <input type="text" name="location" /></label><br />
+  <label>Social Media Links: <input type="text" name="social_links" /></label
+  ><br />
+  <label
+    >Example Websites You Like:
+    <input type="text" name="example_sites" /></label
+  ><br />
+
+  <label
+    >Preferred Style:
+    <select name="template" onchange="updatePreview(this.value)">
+      <option value="modern">Modern</option>
+      <option value="bold">Bold</option>
+      <option value="minimal">Minimal</option>
+    </select> </label
+  ><br />
+
+  <label
+    ><input type="checkbox" name="surprise_me" /> Surprise me with a
+    design!</label
+  ><br />
+
+  <label
+    >Choose Your Package:
+    <select name="package">
+      <option value="starter">Starter (£99)</option>
+      <option value="pro">Pro (£199)</option>
+      <option value="premium">Premium (£299)</option>
+    </select> </label
+  ><br />
+
+  <h3>Add-ons</h3>
+  <label><input type="checkbox" name="add_logo" /> Logo Design (£49)</label
+  ><br />
+  <label><input type="checkbox" name="add_seo" /> SEO Setup (£79)</label><br />
+  <label
+    ><input type="checkbox" name="add_email" /> Business Email Hosting
+    (£29)</label
+  ><br />
+
+  <input type="submit" value="Preview & Continue" />
+</form>
+
+<h3>Live Preview</h3>
+<iframe
+  id="preview_frame"
+  src="{{ templates['modern'] }}"
+  width="100%"
+  height="400px"
+  style="border: none"
+></iframe>
+
+<script>
+  function updatePreview(template) {
+    const urls = {
+      modern: "{{ templates['modern'] }}",
+      bold: "{{ templates['bold'] }}",
+      minimal: "{{ templates['minimal'] }}",
+    };
+    document.getElementById("preview_frame").src = urls[template];
+  }
+</script>
